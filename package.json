@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify": "tsx scripts/verify-schema.ts",
+    "verify": "tsx scripts/verify-schema.ts && tsx scripts/verify-auth.ts",
     "typecheck": "tsc --noEmit",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/types/database.ts"

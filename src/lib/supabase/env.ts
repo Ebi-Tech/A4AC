@@ -32,6 +32,28 @@ export function supabaseAnonKey(): string {
 }
 
 /**
+ * Tells whether Google sign-in is configured. The button is hidden unless both
+ * GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+ *
+ * @returns True when both Google provider keys are present.
+ */
+export function googleSignInEnabled(): boolean {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+/**
+ * Returns the public site URL used in auth redirects. Prefers
+ * NEXT_PUBLIC_SITE_URL and falls back to the given request origin.
+ *
+ * @param requestOrigin Origin of the current request, if known.
+ * @returns The site URL without a trailing slash.
+ */
+export function siteUrl(requestOrigin?: string | null): string {
+  const url = process.env.NEXT_PUBLIC_SITE_URL || requestOrigin || "http://localhost:3000";
+  return url.replace(/\/$/, "");
+}
+
+/**
  * Returns the service role key (SUPABASE_SERVICE_ROLE_KEY). Server only:
  * it bypasses Row Level Security.
  *

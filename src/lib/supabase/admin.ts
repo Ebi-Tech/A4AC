@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { supabaseServiceRoleKey, supabaseUrl } from "./env";
 
 export const RECORDINGS_BUCKET = "recordings";
@@ -12,7 +13,7 @@ export const RECORDINGS_BUCKET = "recordings";
  * @returns A service-role Supabase client with session persistence disabled.
  */
 export function createAdminClient() {
-  return createClient(supabaseUrl(), supabaseServiceRoleKey(), {
+  return createClient<Database>(supabaseUrl(), supabaseServiceRoleKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

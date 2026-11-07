@@ -1,9 +1,13 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { config } from "dotenv";
-import { randomUUID } from "node:crypto";
-
-config({ path: ".env.local" });
-config();
+import {
+  adminClient,
+  assert,
+  createTestUser,
+  deleteTestUsers,
+  fail,
+  finish,
+  run,
+  seedIds,
+} from "./lib/harness";
 
 const TABLES = [
   "profiles",
@@ -17,86 +21,19 @@ const TABLES = [
   "review_history",
   "flags",
   "gold_samples",
+  "app_settings",
+  "language_requests",
 ];
 const SEED_LANGUAGES = ["eng", "fra", "kin", "swh", "ibo", "yor", "hau"];
 
-let failures = 0;
-
 /**
- * Reads a required environment variable or exits with a helpful message.
+ * Checks tables, seed data and the core review rules from prompt 1, using
+ * two temporary users (with valid consent) that are deleted at the end.
  *
- * @param name The variable name.
- * @returns Its value.
- */
-function env(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`Missing ${name}. Copy .env.example to .env.local and fill it in (see README).`);
-    process.exit(1);
-  }
-  return value;
-}
-
-/**
- * Runs one named check and prints "ok" or "FAILED" with the reason.
- *
- * @param name  Human-readable check name.
- * @param check Async function that throws when the check fails.
- * @returns A promise that resolves once the line is printed.
- */
-async function run(name: string, check: () => Promise<void>): Promise<void> {
-  try {
-    await check();
-    console.log(`ok      ${name}`);
-  } catch (err) {
-    failures += 1;
-    console.log(`FAILED  ${name}: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-/**
- * Throws with the given message when the condition is false.
- *
- * @param condition Value that must be truthy.
- * @param message   Error message if it is not.
- */
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
-}
-
-/**
- * Creates a confirmed throwaway user with the admin API and returns a client
- * signed in as that user (so RLS and triggers apply as for a real contributor).
- *
- * @param admin Service-role client.
- * @param label Short label used in the email address.
- * @returns The user's id and a signed-in anon-key client.
- */
-async function createTestUser(admin: SupabaseClient, label: string) {
-  const email = `verify-${label}-${randomUUID().slice(0, 8)}@example.test`;
-  const password = randomUUID();
-  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (error || !data.user) throw new Error(`createUser failed: ${error?.message}`);
-
-  const client = createClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const signIn = await client.auth.signInWithPassword({ email, password });
-  if (signIn.error) throw new Error(`sign-in failed: ${signIn.error.message}`);
-
-  return { id: data.user.id, client };
-}
-
-/**
- * Entry point. Checks tables, seed data and the database rules, using two
- * temporary users that are deleted at the end.
- *
- * @returns A promise that resolves when all checks have run; exits non-zero on failure.
+ * @returns A promise that resolves when all checks have run.
  */
 async function main(): Promise<void> {
-  const admin = createClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const admin = adminClient();
 
   for (const table of TABLES) {
     await run(`table ${table} exists`, async () => {
@@ -136,14 +73,11 @@ async function main(): Promise<void> {
     createdUsers.push(author.id);
     const reviewer = await createTestUser(admin, "reviewer");
     createdUsers.push(reviewer.id);
-
-    const { data: sentence } = await admin.from("sentences").select("id").eq("source", "project-seed").limit(1).single();
-    const { data: igbo } = await admin.from("languages").select("id").eq("iso_code", "ibo").single();
-    assert(sentence && igbo, "seed data missing; cannot run rule checks");
+    const { sentenceId, languageId } = await seedIds(admin, "ibo");
 
     const { data: translation, error: insertError } = await author.client
       .from("translations")
-      .insert({ sentence_id: sentence.id, language_id: igbo.id, contributor_id: author.id, text: "Ule ka tomato ndị a?" })
+      .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: author.id, text: "Ule ka tomato ndị a?" })
       .select("id, status")
       .single();
     assert(!insertError && translation, `could not insert test translation: ${insertError?.message}`);
@@ -210,18 +144,12 @@ async function main(): Promise<void> {
       assert(data.status === "pending", `status is ${data.status}`);
     });
   } catch (err) {
-    failures += 1;
-    console.log(`FAILED  rule checks setup: ${err instanceof Error ? err.message : String(err)}`);
+    fail("rule checks setup", err);
   } finally {
-    for (const id of createdUsers) await admin.auth.admin.deleteUser(id);
+    await deleteTestUsers(admin, createdUsers);
   }
 
-  if (failures === 0) {
-    console.log("all checks passed");
-  } else {
-    console.log(`${failures} check(s) FAILED`);
-    process.exit(1);
-  }
+  finish();
 }
 
 main();
