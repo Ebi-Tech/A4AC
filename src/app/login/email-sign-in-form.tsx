@@ -10,13 +10,15 @@ import { initialFormState } from "@/lib/form-state";
  * Email field and button that request a magic sign-in link. Shows a
  * confirmation in place once the email has been sent.
  *
+ * @param props.next Internal path to return to after signing in.
  * @returns The sign-in form.
  */
-export function EmailSignInForm() {
+export function EmailSignInForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(signInWithEmail, initialFormState);
 
   return (
     <form action={action} className="space-y-4">
+      <input type="hidden" name="next" value={next} />
       <div>
         <label htmlFor="email" className={label}>
           Email address

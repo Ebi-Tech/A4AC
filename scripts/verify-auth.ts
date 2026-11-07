@@ -33,7 +33,7 @@ async function main(): Promise<void> {
    * @returns The signed-in test user.
    */
   const user = async (label: string, consent = true): Promise<TestUser> => {
-    const created = await createTestUser(admin, label, { consent });
+    const created = await createTestUser(admin, label, { consent, speaks: ["ibo"] });
     createdUsers.push(created.id);
     return created;
   };
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
       assert(data?.current_consent_version === fileVersion, `file ${fileVersion} vs database ${data?.current_consent_version}`);
     });
 
-    const { sentenceId, languageId } = await seedIds(admin, "ibo");
+    const { sentenceId, languageId, engId } = await seedIds(admin, "ibo");
     const author = await user("author");
     const reviewer = await user("reviewer");
     const noConsent = await user("noconsent", false);
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     await run("a user with valid consent can insert a translation", async () => {
       const { data, error } = await author.client
         .from("translations")
-        .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: author.id, text: "Kedu ka ị mere?" })
+        .insert({ sentence_id: sentenceId, language_id: languageId, seen_anchor_language_id: engId, contributor_id: author.id, text: "Kedu ka ị mere?" })
         .select("id, status")
         .single();
       assert(!error && data, `insert failed: ${error?.message}`);
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
       assert(translationId, "no target translation (previous check failed)");
       const translation = await noConsent.client
         .from("translations")
-        .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: noConsent.id, text: "Ndewo" });
+        .insert({ sentence_id: sentenceId, language_id: languageId, seen_anchor_language_id: engId, contributor_id: noConsent.id, text: "Ndewo" });
       assert(translation.error && CONSENT_BLOCKED.test(translation.error.message), "translation insert was not blocked");
 
       const review = await noConsent.client
@@ -88,7 +88,7 @@ async function main(): Promise<void> {
       assert(!downgrade.error, `could not set old version: ${downgrade.error?.message}`);
       const { error } = await outdated.client
         .from("translations")
-        .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: outdated.id, text: "Ndewo nụ" });
+        .insert({ sentence_id: sentenceId, language_id: languageId, seen_anchor_language_id: engId, contributor_id: outdated.id, text: "Ndewo nụ" });
       assert(error && CONSENT_BLOCKED.test(error.message), "insert with outdated consent was not blocked");
     });
 
@@ -157,7 +157,7 @@ async function main(): Promise<void> {
 
       const recording = await doomed.client.from("recordings").insert({
         sentence_id: sentenceId,
-        language_id: languageId,
+        language_id: languageId, seen_anchor_language_id: engId,
         contributor_id: doomed.id,
         mode: "translate_and_speak",
         storage_path: audioPath,
@@ -167,7 +167,7 @@ async function main(): Promise<void> {
 
       const translation = await doomed.client
         .from("translations")
-        .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: doomed.id, text: "Daalụ" });
+        .insert({ sentence_id: sentenceId, language_id: languageId, seen_anchor_language_id: engId, contributor_id: doomed.id, text: "Daalụ nke ukwuu" });
       assert(!translation.error, `translation insert failed: ${translation.error?.message}`);
 
       const { filesRemoved } = await deleteAccountAndFiles(admin, doomed.id);

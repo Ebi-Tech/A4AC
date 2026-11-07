@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify": "tsx scripts/verify-schema.ts && tsx scripts/verify-auth.ts",
+    "verify": "tsx scripts/verify-schema.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-sentences.ts && tsx scripts/verify-write.ts",
     "typecheck": "tsc --noEmit",
     "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local > src/types/database.ts"
+    "db:types": "supabase gen types typescript --local > src/types/database.ts",
+    "make-admin": "tsx scripts/make-admin.ts",
+    "import-sentences": "tsx scripts/import-sentences.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

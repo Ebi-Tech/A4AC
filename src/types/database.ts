@@ -38,16 +38,31 @@ export type Database = {
         Row: {
           current_consent_version: string
           id: boolean
+          skip_cooldown: unknown
+          translation_max_ratio: number
+          translation_min_ratio: number
+          translation_rate_limit: number
+          translation_rate_window: unknown
           updated_at: string
         }
         Insert: {
           current_consent_version: string
           id?: boolean
+          skip_cooldown?: unknown
+          translation_max_ratio?: number
+          translation_min_ratio?: number
+          translation_rate_limit?: number
+          translation_rate_window?: unknown
           updated_at?: string
         }
         Update: {
           current_consent_version?: string
           id?: boolean
+          skip_cooldown?: unknown
+          translation_max_ratio?: number
+          translation_min_ratio?: number
+          translation_rate_limit?: number
+          translation_rate_window?: unknown
           updated_at?: string
         }
         Relationships: []
@@ -170,6 +185,7 @@ export type Database = {
           iso_code: string
           name: string
           native_name: string | null
+          special_characters: string[]
           status: Database["public"]["Enums"]["language_status"]
           updated_at: string
         }
@@ -181,6 +197,7 @@ export type Database = {
           iso_code: string
           name: string
           native_name?: string | null
+          special_characters?: string[]
           status?: Database["public"]["Enums"]["language_status"]
           updated_at?: string
         }
@@ -192,6 +209,7 @@ export type Database = {
           iso_code?: string
           name?: string
           native_name?: string | null
+          special_characters?: string[]
           status?: Database["public"]["Enums"]["language_status"]
           updated_at?: string
         }
@@ -205,6 +223,7 @@ export type Database = {
           display_name: string
           id: string
           is_adult_confirmed: boolean
+          last_language_id: string | null
           onboarded_at: string | null
           role: Database["public"]["Enums"]["app_role"]
           trust_score: number
@@ -217,6 +236,7 @@ export type Database = {
           display_name: string
           id: string
           is_adult_confirmed?: boolean
+          last_language_id?: string | null
           onboarded_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           trust_score?: number
@@ -229,12 +249,21 @@ export type Database = {
           display_name?: string
           id?: string
           is_adult_confirmed?: boolean
+          last_language_id?: string | null
           onboarded_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           trust_score?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_last_language_id_fkey"
+            columns: ["last_language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recordings: {
         Row: {
@@ -245,6 +274,7 @@ export type Database = {
           id: string
           language_id: string
           mode: Database["public"]["Enums"]["recording_mode"]
+          seen_anchor_language_id: string
           sentence_id: string
           status: Database["public"]["Enums"]["contribution_status"]
           storage_path: string
@@ -259,6 +289,7 @@ export type Database = {
           id?: string
           language_id: string
           mode: Database["public"]["Enums"]["recording_mode"]
+          seen_anchor_language_id: string
           sentence_id: string
           status?: Database["public"]["Enums"]["contribution_status"]
           storage_path: string
@@ -273,6 +304,7 @@ export type Database = {
           id?: string
           language_id?: string
           mode?: Database["public"]["Enums"]["recording_mode"]
+          seen_anchor_language_id?: string
           sentence_id?: string
           status?: Database["public"]["Enums"]["contribution_status"]
           storage_path?: string
@@ -290,6 +322,13 @@ export type Database = {
           {
             foreignKeyName: "recordings_language_id_fkey"
             columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recordings_seen_anchor_language_id_fkey"
+            columns: ["seen_anchor_language_id"]
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["id"]
@@ -389,38 +428,215 @@ export type Database = {
           },
         ]
       }
+      sentence_coverage: {
+        Row: {
+          has_verified_french: boolean
+          is_active: boolean
+          language_id: string
+          random_key: number
+          recording_count: number
+          sentence_id: string
+          translation_count: number
+        }
+        Insert: {
+          has_verified_french?: boolean
+          is_active?: boolean
+          language_id: string
+          random_key: number
+          recording_count?: number
+          sentence_id: string
+          translation_count?: number
+        }
+        Update: {
+          has_verified_french?: boolean
+          is_active?: boolean
+          language_id?: string
+          random_key?: number
+          recording_count?: number
+          sentence_id?: string
+          translation_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentence_coverage_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_coverage_sentence_id_fkey"
+            columns: ["sentence_id"]
+            isOneToOne: false
+            referencedRelation: "sentences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sentence_reports: {
+        Row: {
+          created_at: string
+          id: string
+          language_id: string | null
+          reason: string | null
+          reporter_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          sentence_id: string
+          status: Database["public"]["Enums"]["flag_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language_id?: string | null
+          reason?: string | null
+          reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sentence_id: string
+          status?: Database["public"]["Enums"]["flag_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language_id?: string | null
+          reason?: string | null
+          reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sentence_id?: string
+          status?: Database["public"]["Enums"]["flag_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentence_reports_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_reports_sentence_id_fkey"
+            columns: ["sentence_id"]
+            isOneToOne: false
+            referencedRelation: "sentences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sentence_skips: {
+        Row: {
+          created_at: string
+          id: string
+          language_id: string
+          note: string | null
+          reason: Database["public"]["Enums"]["skip_reason"]
+          sentence_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language_id: string
+          note?: string | null
+          reason: Database["public"]["Enums"]["skip_reason"]
+          sentence_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language_id?: string
+          note?: string | null
+          reason?: Database["public"]["Enums"]["skip_reason"]
+          sentence_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentence_skips_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_skips_sentence_id_fkey"
+            columns: ["sentence_id"]
+            isOneToOne: false
+            referencedRelation: "sentences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_skips_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sentences: {
         Row: {
           anchor_language_id: string
           created_at: string
           difficulty: number | null
+          has_verified_french: boolean
           id: string
           is_active: boolean
+          normalized_text: string | null
+          random_key: number
           source: string
           source_license: string
           text: string
+          topic: string | null
           updated_at: string
         }
         Insert: {
           anchor_language_id: string
           created_at?: string
           difficulty?: number | null
+          has_verified_french?: boolean
           id?: string
           is_active?: boolean
+          normalized_text?: string | null
+          random_key?: number
           source: string
           source_license: string
           text: string
+          topic?: string | null
           updated_at?: string
         }
         Update: {
           anchor_language_id?: string
           created_at?: string
           difficulty?: number | null
+          has_verified_french?: boolean
           id?: string
           is_active?: boolean
+          normalized_text?: string | null
+          random_key?: number
           source?: string
           source_license?: string
           text?: string
+          topic?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -484,6 +700,7 @@ export type Database = {
           created_at: string
           id: string
           language_id: string
+          seen_anchor_language_id: string
           sentence_id: string
           status: Database["public"]["Enums"]["contribution_status"]
           text: string
@@ -494,6 +711,7 @@ export type Database = {
           created_at?: string
           id?: string
           language_id: string
+          seen_anchor_language_id: string
           sentence_id: string
           status?: Database["public"]["Enums"]["contribution_status"]
           text: string
@@ -504,6 +722,7 @@ export type Database = {
           created_at?: string
           id?: string
           language_id?: string
+          seen_anchor_language_id?: string
           sentence_id?: string
           status?: Database["public"]["Enums"]["contribution_status"]
           text?: string
@@ -520,6 +739,13 @@ export type Database = {
           {
             foreignKeyName: "translations_language_id_fkey"
             columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translations_seen_anchor_language_id_fkey"
+            columns: ["seen_anchor_language_id"]
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["id"]
@@ -592,6 +818,60 @@ export type Database = {
         Args: { p_is_adult: boolean; p_version: string }
         Returns: undefined
       }
+      admin_anchor_list: {
+        Args: {
+          p_filter?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+        }
+        Returns: {
+          french_status: string
+          french_text: string
+          french_translation_id: string
+          is_active: boolean
+          sentence_id: string
+          text: string
+          topic: string
+          total_count: number
+        }[]
+      }
+      admin_sentence_usage: {
+        Args: { p_ids: string[] }
+        Returns: {
+          recordings: number
+          sentence_id: string
+          translations: number
+        }[]
+      }
+      approve_language_request: {
+        Args: {
+          p_iso_code: string
+          p_name: string
+          p_native_name?: string
+          p_request_id: string
+          p_status?: Database["public"]["Enums"]["language_status"]
+        }
+        Returns: string
+      }
+      benchmark_next_sentence: {
+        Args: {
+          p_language_id: string
+          p_runs?: number
+          p_task: string
+          p_user: string
+        }
+        Returns: number
+      }
+      bump_coverage: {
+        Args: {
+          p_column: string
+          p_delta: number
+          p_language: string
+          p_sentence: string
+        }
+        Returns: undefined
+      }
       contribution_owner: {
         Args: {
           p_id: string
@@ -600,6 +880,14 @@ export type Database = {
         Returns: string
       }
       current_consent_version: { Args: never; Returns: string }
+      decline_language_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      find_existing_sentences: {
+        Args: { p_texts: string[] }
+        Returns: string[]
+      }
       has_valid_consent: { Args: { p_user?: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_privileged: { Args: never; Returns: boolean }
@@ -626,7 +914,45 @@ export type Database = {
           translations: number
         }[]
       }
+      next_sentence: {
+        Args: { p_exclude?: string[]; p_language_id: string; p_task: string }
+        Returns: {
+          anchor_iso_code: string
+          anchor_language_id: string
+          anchor_text: string
+          sentence_id: string
+        }[]
+      }
+      next_sentence_for_speak: {
+        Args: { p_exclude?: string[]; p_language_id: string }
+        Returns: {
+          anchor_iso_code: string
+          anchor_language_id: string
+          anchor_text: string
+          sentence_id: string
+        }[]
+      }
+      next_sentence_for_write: {
+        Args: { p_exclude?: string[]; p_language_id: string }
+        Returns: {
+          anchor_iso_code: string
+          anchor_language_id: string
+          anchor_text: string
+          sentence_id: string
+        }[]
+      }
+      normalize_sentence: { Args: { p_text: string }; Returns: string }
       onboarding_status: { Args: never; Returns: string }
+      require_admin: { Args: never; Returns: undefined }
+      resolve_sentence_report: {
+        Args: { p_action: string; p_report_id: string }
+        Returns: undefined
+      }
+      sentence_topics: { Args: never; Returns: string[] }
+      translation_error: {
+        Args: { p_message: string; p_rule: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "contributor" | "admin"
@@ -642,6 +968,7 @@ export type Database = {
         | "different_meaning"
         | "unclear_audio"
         | "not_this_language"
+      skip_reason: "not_sure" | "unclear" | "report"
       target_type: "translation" | "recording" | "transcript"
     }
     CompositeTypes: {
@@ -787,6 +1114,7 @@ export const Constants = {
         "unclear_audio",
         "not_this_language",
       ],
+      skip_reason: ["not_sure", "unclear", "report"],
       target_type: ["translation", "recording", "transcript"],
     },
   },

@@ -82,23 +82,25 @@ export function finish(): void {
   }
 }
 
-export type TestUser = { id: string; client: SupabaseClient };
+export type TestUser = { id: string; email: string; client: SupabaseClient };
 
 /**
  * Creates a confirmed throwaway user and returns a client signed in as them,
  * so RLS and triggers apply exactly as for a real contributor. With
  * consent = true the user accepts the current consent version through the
- * same accept_consent() function the app uses.
+ * same accept_consent() function the app uses. The user is also given the
+ * listed anchor languages ("understands").
  *
  * @param admin   Service-role client.
  * @param label   Short label used in the email address.
- * @param options consent: whether to accept the current consent (default true).
- * @returns The user's id and a signed-in anon-key client.
+ * @param options consent (default true); anchors: ISO codes the user reads
+ *                (default ["eng"]); speaks: ISO codes the user speaks natively.
+ * @returns The user's id, email and a signed-in anon-key client.
  */
 export async function createTestUser(
   admin: SupabaseClient,
   label: string,
-  options: { consent?: boolean } = {},
+  options: { consent?: boolean; anchors?: string[]; speaks?: string[] } = {},
 ): Promise<TestUser> {
   const email = `verify-${label}-${randomUUID().slice(0, 8)}@example.test`;
   const password = randomUUID();
@@ -120,7 +122,20 @@ export async function createTestUser(
     if (accept.error) throw new Error(`accept_consent failed: ${accept.error.message}`);
   }
 
-  return { id: data.user.id, client };
+  const anchors = options.anchors ?? ["eng"];
+  const speaks = options.speaks ?? [];
+  if (anchors.length || speaks.length) {
+    const { data: langs } = await admin.from("languages").select("id, iso_code").in("iso_code", [...anchors, ...speaks]);
+    const rows = (langs ?? []).map((l) => ({
+      user_id: data.user.id,
+      language_id: l.id,
+      ability: speaks.includes(l.iso_code) ? "native" : "understands",
+    }));
+    const insert = await client.from("user_languages").insert(rows);
+    if (insert.error) throw new Error(`could not add languages: ${insert.error.message}`);
+  }
+
+  return { id: data.user.id, email, client };
 }
 
 /**
@@ -138,11 +153,15 @@ export async function deleteTestUsers(admin: SupabaseClient, ids: string[]): Pro
  *
  * @param admin   Service-role client.
  * @param isoCode Language code, e.g. "ibo".
- * @returns The sentence id and language id.
+ * @returns The sentence id, the language id and the English (anchor) language id.
  */
-export async function seedIds(admin: SupabaseClient, isoCode: string): Promise<{ sentenceId: string; languageId: string }> {
+export async function seedIds(
+  admin: SupabaseClient,
+  isoCode: string,
+): Promise<{ sentenceId: string; languageId: string; engId: string }> {
   const { data: sentence } = await admin.from("sentences").select("id").eq("source", "project-seed").limit(1).single();
   const { data: language } = await admin.from("languages").select("id").eq("iso_code", isoCode).single();
-  if (!sentence || !language) throw new Error("seed data missing; run supabase db reset");
-  return { sentenceId: sentence.id, languageId: language.id };
+  const { data: eng } = await admin.from("languages").select("id").eq("iso_code", "eng").single();
+  if (!sentence || !language || !eng) throw new Error("seed data missing; run supabase db reset");
+  return { sentenceId: sentence.id, languageId: language.id, engId: eng.id };
 }

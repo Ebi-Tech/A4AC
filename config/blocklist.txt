@@ -1,0 +1,4 @@
+# Offensive words or phrases to keep out of the sentence bank.
+# One per line. Matching ignores case and punctuation and checks whole words.
+# Lines starting with # are ignored. Used by `npm run import-sentences`
+# and by bulk upload on /admin/sentences.

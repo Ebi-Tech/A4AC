@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
 import { ConsentText } from "@/components/consent-text";
+import { DeleteAccountForm } from "@/components/delete-account-form";
 import { DisplayNameForm } from "@/components/display-name-form";
 import { LanguageRequestForm } from "@/components/language-request-form";
 import { LanguagesForm } from "@/components/languages-form";
@@ -42,11 +43,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   if (status === "done") redirect("/");
 
   const signOutForm = (
-    <form action={signOut} className="pt-4">
-      <button type="submit" className={`min-h-11 underline ${muted}`}>
-        Not now, sign me out
-      </button>
-    </form>
+    <div className="space-y-1 border-t border-stone-200 pt-4 dark:border-stone-800">
+      <form action={signOut}>
+        <button type="submit" className={`min-h-11 text-sm underline ${muted}`}>
+          Not now, sign me out
+        </button>
+      </form>
+      <DeleteAccountForm compact />
+    </div>
   );
 
   if (status === "consent") {
@@ -71,6 +75,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         <h1 className={h1}>Your languages</h1>
         <LanguagesForm languages={languages} selected={selected} context="onboarding" />
         <LanguageRequestForm />
+        {signOutForm}
       </div>
     );
   }
@@ -84,6 +89,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         <p className={muted}>Pick a name, or keep the anonymous one we made for you.</p>
       </div>
       <DisplayNameForm currentName={profile?.display_name ?? "Contributor"} context="onboarding" />
+      {signOutForm}
     </div>
   );
 }

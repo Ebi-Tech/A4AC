@@ -7,7 +7,7 @@ const navLink =
 
 /**
  * Site header with the project name and navigation. Shows "Sign in" to
- * visitors and "Profile" plus "Sign out" to signed-in users.
+ * visitors, "Profile" plus "Sign out" to signed-in users, and "Admin" to admins.
  *
  * @returns The header element.
  */
@@ -16,6 +16,7 @@ export async function SiteHeader() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isAdmin = user ? (await supabase.rpc("is_admin")).data === true : false;
 
   return (
     <header className="border-b border-stone-200 dark:border-stone-800">
@@ -28,6 +29,11 @@ export async function SiteHeader() {
         </Link>
         {user ? (
           <>
+            {isAdmin && (
+              <Link href="/admin" className={navLink}>
+                Admin
+              </Link>
+            )}
             <Link href="/profile" className={navLink}>
               Profile
             </Link>

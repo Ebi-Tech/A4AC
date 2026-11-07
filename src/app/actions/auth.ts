@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/lib/form-state";
-import { safeNextPath } from "@/lib/routes";
+import { encodeNextParam, safeNextPath } from "@/lib/routes";
 import { googleSignInEnabled, siteUrl } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,10 +23,11 @@ async function requestSiteUrl(): Promise<string> {
 
 /**
  * Sends a passwordless sign-in link to the given email address. New emails
- * get an account automatically.
+ * get an account automatically. The page the user wanted ("next") is
+ * encoded into the link so they return to it after signing in.
  *
  * @param _prev    Previous form state (unused).
- * @param formData Form fields: "email".
+ * @param formData Form fields: "email", "next" (optional internal path).
  * @returns A success message naming the address, or an error.
  */
 export async function signInWithEmail(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -34,11 +35,15 @@ export async function signInWithEmail(_prev: FormState, formData: FormData): Pro
   if (!EMAIL_PATTERN.test(email)) {
     return { error: "Please enter a valid email address." };
   }
+  const next = safeNextPath(String(formData.get("next") ?? "/"));
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true, emailRedirectTo: `${await requestSiteUrl()}/auth/confirm` },
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${await requestSiteUrl()}/auth/confirm?to=${encodeNextParam(next)}`,
+    },
   });
 
   if (error) {

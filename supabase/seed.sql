@@ -17,6 +17,13 @@ insert into public.languages (iso_code, name, native_name, is_anchor, status, ha
   ('hau', 'Hausa',       'Harshen Hausa', false, 'open', true)
 on conflict (iso_code) do nothing;
 
+update public.languages set special_characters = case iso_code
+  when 'yor' then array['ẹ','ọ','ṣ','á','à','é','è','í','ì','ó','ò','ú','ù','ń','ẹ́','ẹ̀','ọ́','ọ̀','Ẹ','Ọ','Ṣ']
+  when 'ibo' then array['ị','ọ','ụ','ṅ','á','à','é','è','í','ì','ó','ò','ú','ù','Ị','Ọ','Ụ','Ṅ']
+  when 'hau' then array['ɓ','ɗ','ƙ','ƴ','ʼ','Ɓ','Ɗ','Ƙ','Ƴ']
+end
+where iso_code in ('yor', 'ibo', 'hau') and special_characters = '{}';
+
 insert into public.sentences (anchor_language_id, text, source, source_license, difficulty)
 select l.id, s.text, 'project-seed', 'CC0-1.0', s.difficulty
 from public.languages l
@@ -33,4 +40,4 @@ cross join (values
   ('Can I pay for the bread tomorrow?', 2)
 ) as s(text, difficulty)
 where l.iso_code = 'eng'
-on conflict (anchor_language_id, text) do nothing;
+on conflict do nothing;

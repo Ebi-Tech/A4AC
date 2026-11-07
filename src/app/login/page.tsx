@@ -40,7 +40,7 @@ export default async function LoginPage({
         </p>
       )}
 
-      <EmailSignInForm />
+      <EmailSignInForm next={nextPath} />
 
       {showGoogle && (
         <>

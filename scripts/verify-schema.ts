@@ -69,15 +69,15 @@ async function main(): Promise<void> {
 
   const createdUsers: string[] = [];
   try {
-    const author = await createTestUser(admin, "author");
+    const author = await createTestUser(admin, "author", { speaks: ["ibo"] });
     createdUsers.push(author.id);
     const reviewer = await createTestUser(admin, "reviewer");
     createdUsers.push(reviewer.id);
-    const { sentenceId, languageId } = await seedIds(admin, "ibo");
+    const { sentenceId, languageId, engId } = await seedIds(admin, "ibo");
 
     const { data: translation, error: insertError } = await author.client
       .from("translations")
-      .insert({ sentence_id: sentenceId, language_id: languageId, contributor_id: author.id, text: "Ule ka tomato ndị a?" })
+      .insert({ sentence_id: sentenceId, language_id: languageId, seen_anchor_language_id: engId, contributor_id: author.id, text: "Ule ka tomato ndị a?" })
       .select("id, status")
       .single();
     assert(!insertError && translation, `could not insert test translation: ${insertError?.message}`);
