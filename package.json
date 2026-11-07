@@ -7,12 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify": "tsx scripts/verify-schema.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-sentences.ts && tsx scripts/verify-write.ts",
+    "verify": "tsx scripts/verify-schema.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-sentences.ts && tsx scripts/verify-write.ts && tsx scripts/verify-speak.ts",
     "typecheck": "tsc --noEmit",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "make-admin": "tsx scripts/make-admin.ts",
-    "import-sentences": "tsx scripts/import-sentences.ts"
+    "import-sentences": "tsx scripts/import-sentences.ts",
+    "cleanup-orphans": "tsx scripts/cleanup-orphans.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -31,6 +32,7 @@
     "dotenv": "^18.0.9",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "playwright-core": "^1.65.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

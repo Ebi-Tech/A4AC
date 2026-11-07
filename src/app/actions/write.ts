@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/lib/form-state";
+import { recordSkip, type SkipReason } from "@/lib/skips";
 import { createClient } from "@/lib/supabase/server";
 
 export type QueueItem = {
@@ -17,8 +18,6 @@ export type WriteResult =
   | { ok: false; error: string; rule: string | null };
 
 const GENERIC_ERROR = "Something went wrong. Please check your connection and try again.";
-const SKIP_REASONS = ["not_sure", "unclear", "report"] as const;
-type SkipReason = (typeof SKIP_REASONS)[number];
 
 /**
  * Returns a server Supabase client and the signed-in user's id, or redirects
@@ -134,18 +133,9 @@ export async function skipSentence(input: {
   note?: string;
   exclude: string[];
 }): Promise<WriteResult> {
-  if (!SKIP_REASONS.includes(input.reason)) return { ok: false, error: GENERIC_ERROR, rule: null };
   const { supabase, userId } = await requireUser();
-  const note = input.reason === "report" ? (input.note ?? "").trim().slice(0, 500) : "";
-
-  const { error } = await supabase.from("sentence_skips").insert({
-    user_id: userId,
-    sentence_id: input.sentenceId,
-    language_id: input.languageId,
-    reason: input.reason,
-    note: note || null,
-  });
-  if (error) return { ok: false, error: GENERIC_ERROR, rule: null };
+  const saved = await recordSkip(supabase, userId, input);
+  if (!saved) return { ok: false, error: GENERIC_ERROR, rule: null };
 
   return { ok: true, following: await queueNext(supabase, input.languageId, [...input.exclude, input.sentenceId]) };
 }

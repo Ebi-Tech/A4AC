@@ -160,6 +160,7 @@ async function main(): Promise<void> {
         language_id: languageId, seen_anchor_language_id: engId,
         contributor_id: doomed.id,
         mode: "translate_and_speak",
+        mime_type: "audio/webm",
         storage_path: audioPath,
         duration_ms: 1200,
       });

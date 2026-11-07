@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getNextSentence, skipSentence, submitTranslation, type QueueItem, type WriteResult } from "@/app/actions/write";
+import { SkipPanel, type SkipChoice } from "@/components/skip-panel";
 import { btnPrimary, btnSecondary, input, muted } from "@/components/ui";
 
 type Language = { id: string; iso: string; name: string; specialCharacters: string[] };
 type Notice = { kind: "error" | "break"; text: string } | null;
-type SkipReason = "not_sure" | "unclear" | "report";
 
 /**
  * Reads a value from browser storage, returning null when storage is
@@ -70,8 +70,6 @@ export function WriteTask({
   const [notice, setNotice] = useState<Notice>(null);
   const [busy, setBusy] = useState(false);
   const [skipOpen, setSkipOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportNote, setReportNote] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prefetching = useRef(false);
 
@@ -129,8 +127,6 @@ export function WriteTask({
     setText("");
     setNotice(null);
     setSkipOpen(false);
-    setReportOpen(false);
-    setReportNote("");
     textareaRef.current?.focus();
   };
 
@@ -171,8 +167,9 @@ export function WriteTask({
    * Skips (or reports) the current sentence and shows the next one.
    *
    * @param reason Why the sentence is skipped.
+   * @param note   Optional reason text for reports.
    */
-  const skip = async (reason: SkipReason) => {
+  const skip = async (reason: SkipChoice, note?: string) => {
     if (!current || busy) return;
     setBusy(true);
     try {
@@ -180,7 +177,7 @@ export function WriteTask({
         languageId: language.id,
         sentenceId: current.sentence_id,
         reason,
-        note: reason === "report" ? reportNote : undefined,
+        note,
         exclude: [current.sentence_id, upcoming?.sentence_id ?? ""],
       });
       if (result.ok) advance(result);
@@ -305,10 +302,7 @@ export function WriteTask({
           type="button"
           className={`${btnSecondary} flex-1 sm:flex-none`}
           aria-expanded={skipOpen}
-          onClick={() => {
-            setSkipOpen((open) => !open);
-            setReportOpen(false);
-          }}
+          onClick={() => setSkipOpen((open) => !open)}
           disabled={busy}
         >
           Skip
@@ -318,39 +312,7 @@ export function WriteTask({
         </button>
       </div>
 
-      {skipOpen && (
-        <div className="space-y-2 rounded-2xl border border-stone-200 p-3 dark:border-stone-800">
-          <p className="font-medium">Why are you skipping?</p>
-          <button type="button" className={`${btnSecondary} sm:w-full`} onClick={() => void skip("not_sure")} disabled={busy}>
-            I&apos;m not sure how to say this
-          </button>
-          <button type="button" className={`${btnSecondary} sm:w-full`} onClick={() => void skip("unclear")} disabled={busy}>
-            The sentence is unclear
-          </button>
-          {reportOpen ? (
-            <div className="space-y-2">
-              <label htmlFor="report-note" className="block text-sm font-medium">
-                What is wrong with it? <span className={`font-normal ${muted}`}>(optional)</span>
-              </label>
-              <textarea
-                id="report-note"
-                value={reportNote}
-                onChange={(e) => setReportNote(e.target.value)}
-                rows={2}
-                maxLength={500}
-                className={`${input} py-2`}
-              />
-              <button type="button" className={`${btnPrimary} sm:w-full`} onClick={() => void skip("report")} disabled={busy}>
-                Send report and skip
-              </button>
-            </div>
-          ) : (
-            <button type="button" className={`${btnSecondary} sm:w-full`} onClick={() => setReportOpen(true)} disabled={busy}>
-              Report this sentence
-            </button>
-          )}
-        </div>
-      )}
+      {skipOpen && <SkipPanel busy={busy} onSkip={(reason, note) => void skip(reason, note)} />}
 
       <p className={`text-center text-sm ${muted}`} aria-live="polite">
         {written > 0 ? `${written} written this session` : " "}

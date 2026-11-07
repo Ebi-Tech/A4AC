@@ -38,6 +38,11 @@ export type Database = {
         Row: {
           current_consent_version: string
           id: boolean
+          recording_max_ms: number
+          recording_min_ms: number
+          recording_min_speech_ms: number
+          recording_rate_limit: number
+          recording_rate_window: unknown
           skip_cooldown: unknown
           translation_max_ratio: number
           translation_min_ratio: number
@@ -48,6 +53,11 @@ export type Database = {
         Insert: {
           current_consent_version: string
           id?: boolean
+          recording_max_ms?: number
+          recording_min_ms?: number
+          recording_min_speech_ms?: number
+          recording_rate_limit?: number
+          recording_rate_window?: unknown
           skip_cooldown?: unknown
           translation_max_ratio?: number
           translation_min_ratio?: number
@@ -58,6 +68,11 @@ export type Database = {
         Update: {
           current_consent_version?: string
           id?: boolean
+          recording_max_ms?: number
+          recording_min_ms?: number
+          recording_min_speech_ms?: number
+          recording_rate_limit?: number
+          recording_rate_window?: unknown
           skip_cooldown?: unknown
           translation_max_ratio?: number
           translation_min_ratio?: number
@@ -265,6 +280,61 @@ export type Database = {
           },
         ]
       }
+      read_aloud_pool: {
+        Row: {
+          contributor_id: string
+          is_active: boolean
+          language_id: string
+          random_key: number
+          read_count: number
+          sentence_id: string
+          tier: number
+          translation_id: string
+        }
+        Insert: {
+          contributor_id: string
+          is_active?: boolean
+          language_id: string
+          random_key?: number
+          read_count?: number
+          sentence_id: string
+          tier: number
+          translation_id: string
+        }
+        Update: {
+          contributor_id?: string
+          is_active?: boolean
+          language_id?: string
+          random_key?: number
+          read_count?: number
+          sentence_id?: string
+          tier?: number
+          translation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "read_aloud_pool_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "read_aloud_pool_sentence_id_fkey"
+            columns: ["sentence_id"]
+            isOneToOne: false
+            referencedRelation: "sentences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "read_aloud_pool_translation_id_fkey"
+            columns: ["translation_id"]
+            isOneToOne: true
+            referencedRelation: "translations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recordings: {
         Row: {
           auto_check_result: Json | null
@@ -273,8 +343,9 @@ export type Database = {
           duration_ms: number | null
           id: string
           language_id: string
+          mime_type: string
           mode: Database["public"]["Enums"]["recording_mode"]
-          seen_anchor_language_id: string
+          seen_anchor_language_id: string | null
           sentence_id: string
           status: Database["public"]["Enums"]["contribution_status"]
           storage_path: string
@@ -288,8 +359,9 @@ export type Database = {
           duration_ms?: number | null
           id?: string
           language_id: string
+          mime_type: string
           mode: Database["public"]["Enums"]["recording_mode"]
-          seen_anchor_language_id: string
+          seen_anchor_language_id?: string | null
           sentence_id: string
           status?: Database["public"]["Enums"]["contribution_status"]
           storage_path: string
@@ -303,8 +375,9 @@ export type Database = {
           duration_ms?: number | null
           id?: string
           language_id?: string
+          mime_type?: string
           mode?: Database["public"]["Enums"]["recording_mode"]
-          seen_anchor_language_id?: string
+          seen_anchor_language_id?: string | null
           sentence_id?: string
           status?: Database["public"]["Enums"]["contribution_status"]
           storage_path?: string
@@ -941,11 +1014,23 @@ export type Database = {
           sentence_id: string
         }[]
       }
+      next_translation_for_read_aloud: {
+        Args: { p_exclude?: string[]; p_language_id: string }
+        Returns: {
+          sentence_id: string
+          text: string
+          translation_id: string
+        }[]
+      }
       normalize_sentence: { Args: { p_text: string }; Returns: string }
       onboarding_status: { Args: never; Returns: string }
       require_admin: { Args: never; Returns: undefined }
       resolve_sentence_report: {
         Args: { p_action: string; p_report_id: string }
+        Returns: undefined
+      }
+      rule_error: {
+        Args: { p_message: string; p_rule: string }
         Returns: undefined
       }
       sentence_topics: { Args: never; Returns: string[] }

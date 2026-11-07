@@ -287,6 +287,7 @@ async function main(): Promise<void> {
         seen_anchor_language_id: eng,
         contributor_id: helper.id,
         mode: "translate_and_speak",
+        mime_type: "audio/webm",
         storage_path: `${helper.id}/verify-${i}.webm`,
       })),
     );

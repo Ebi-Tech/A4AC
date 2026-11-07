@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Contribute · A4AC" };
 
 const SOON = [
-  { title: "Speak", text: "Record yourself saying a sentence." },
   { title: "Transcribe", text: "Type out what someone else said." },
   { title: "Review", text: "Check other people's work." },
 ];
@@ -112,6 +111,22 @@ export default async function ContributePage() {
                 <span className={`block text-sm ${muted}`}>
                   English is the source language, so there is nothing to translate into it.
                 </span>
+              </div>
+            )}
+          </li>
+          <li>
+            {canWrite ? (
+              <Link
+                href={`/contribute/${selected.iso_code}/speak`}
+                className={`${cardBase} border-emerald-700 bg-white hover:bg-emerald-50 dark:bg-stone-900 dark:hover:bg-emerald-950`}
+              >
+                <span className="block text-lg font-semibold">Speak</span>
+                <span className={`block text-sm ${muted}`}>Record yourself saying short sentences in {selected.name}.</span>
+              </Link>
+            ) : (
+              <div className={`${cardBase} border-stone-200 dark:border-stone-800`} aria-disabled="true">
+                <span className="block text-lg font-semibold">Speak</span>
+                <span className={`block text-sm ${muted}`}>We are not collecting English recordings yet.</span>
               </div>
             )}
           </li>

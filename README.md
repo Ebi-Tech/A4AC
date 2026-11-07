@@ -24,10 +24,12 @@ supabase start -x realtime,edge-runtime,logflare,vector,supavisor,imgproxy,studi
 cp .env.example .env.local
 supabase status -o env   # copy API_URL, ANON_KEY and SERVICE_ROLE_KEY into .env.local
 
-npm run verify           # four check scripts (schema, auth, sentences, write); each ends "all checks passed"
-                         # (the last two use the app on :3000 if running, otherwise start one on :3100;
-                         #  the queue speed check loads 30,000 temporary sentences and only runs against
-                         #  a local database unless you set VERIFY_PERF=1)
+npm run verify           # five check scripts (schema, auth, sentences, write, speak); each ends "all checks passed"
+                         # (the last three use the app on :3000 if running, otherwise start one on :3100;
+                         #  the queue speed checks load 30,000 temporary sentences and only run against
+                         #  a local database unless you set VERIFY_PERF=1; the speak script drives your
+                         #  installed Google Chrome with a fake microphone, or skips that part if Chrome
+                         #  is missing; set CHROME_PATH to use another Chromium-based browser)
 npm run dev              # http://localhost:3000
 
 supabase stop            # when you're done (then quit Docker)
@@ -38,6 +40,50 @@ If the email says "Your Magic Link" (Supabase's default) instead of "Your A4AC s
 started before our template was available. Run `docker restart supabase_auth_a4ac` and try again.
 
 Drop `studio` from the `-x` list if you want the Supabase table browser at http://127.0.0.1:54323.
+
+## Testing recording on a real phone
+
+Browsers only allow the microphone on secure pages (`https://`, or `http://localhost`). Two free ways that need
+no accounts or paid services:
+
+### Option A: Android phone over USB (simplest, no config changes)
+
+1. On the phone: Settings › About phone › tap "Build number" 7 times, then Developer options › USB debugging on.
+2. Connect the phone by USB and accept the "Allow USB debugging" prompt.
+3. On the computer, open `chrome://inspect/#devices` in Chrome, click **Port forwarding…** and add:
+   - `3000` → `localhost:3000` (the app)
+   - `54321` → `localhost:54321` (local Supabase)
+   - `54324` → `localhost:54324` (Mailpit, to open sign-in emails on the phone)
+   Tick "Enable port forwarding" and keep that tab open.
+4. Run `npm run dev`. On the phone, open Chrome at `http://localhost:3000`. Because it is `localhost`, the
+   microphone works without https, and `.env.local` stays unchanged.
+
+### Option B: any phone (iPhone or Android) with free Cloudflare quick tunnels
+
+Quick tunnels give a temporary `https://…trycloudflare.com` address with no account. Anyone with the link can
+reach your dev server while the tunnel runs, so stop it when you are done.
+
+1. Install once: `brew install cloudflared`.
+2. Start Supabase and the two tunnels, each in its own terminal:
+   ```bash
+   supabase start -x realtime,edge-runtime,logflare,vector,supavisor,imgproxy,studio,postgres-meta
+   cloudflared tunnel --url http://localhost:54321   # note the https URL it prints: SUPABASE_TUNNEL
+   cloudflared tunnel --url http://localhost:3000    # note the https URL it prints: APP_TUNNEL
+   ```
+3. In `.env.local`, temporarily set:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=<SUPABASE_TUNNEL>
+   NEXT_PUBLIC_SITE_URL=<APP_TUNNEL>
+   ```
+4. So that sign-in emails link to the tunnel, temporarily set `site_url = "<APP_TUNNEL>"` under `[auth]` in
+   `supabase/config.toml`, then `supabase stop && supabase start -x …` (the redirect allow-list already accepts
+   `https://*.trycloudflare.com/**`).
+5. `npm run dev`, then open `<APP_TUNNEL>` on the phone. Request a sign-in link there, open Mailpit on the
+   computer (http://127.0.0.1:54324) and send the link to the phone (or scan it as a QR code).
+6. When finished: stop both tunnels and restore `.env.local` and `site_url`.
+
+`next.config.ts` allows `*.trycloudflare.com` for the dev server and server actions in development only; set
+`DEV_TUNNEL_HOSTS` (comma-separated) if you use a different tunnel.
 
 ## Using a hosted Supabase project (no Docker)
 
@@ -88,6 +134,8 @@ Migrations (`supabase/migrations`, applied in order):
 11. `20261109000003_admin_tools` admin-only functions (language requests, anchors, usage, duplicate lookup)
 12. `20261110000001_write_task` special characters, last language, settings, skips, reports, translation rules
 13. `20261110000002_queue_v2` coverage row for every sentence/language, skips and permissions in the queue, benchmark
+14. `20261111000001_speak_task` mime type, recording limits, 1 MB audio-only bucket, recording rules
+15. `20261111000002_read_aloud_queue` read-aloud pool and queue function
 
 **Vote counting must only use non-stale reviews**: query the `review_votes` view, or filter `not is_stale`.
 
@@ -147,6 +195,26 @@ so each call is a short index walk: about 2 ms with 30,000 sentences and 3,000 s
 - Limits live in `app_settings` (`translation_min_ratio`, `translation_max_ratio`, `translation_rate_limit`,
   `translation_rate_window`, `skip_cooldown`); change them with SQL, no deploy needed.
 - `/profile` lists "My translations": edit (sends it back for review) or delete while pending.
+
+## Contributing (SPEAK task)
+
+- `/contribute/<iso>/speak` has two modes: **Translate and speak** (anchor sentence, `next_sentence_for_speak`) and
+  **Read aloud** (an existing verified, else unverified, translation by someone else,
+  `next_translation_for_read_aloud`).
+- Recording uses the browser's MediaRecorder: WebM/Opus where supported, MP4/AAC on iPhone Safari. Files are
+  stored exactly as recorded (`recordings.mime_type`); conversion happens later in the export step. No audio
+  library is used.
+- The clip is checked in the browser (length, loudness, how much is speech, clipping); results go to
+  `auto_check_result` with `"source": "client"`. Clips that are too short or too long cannot be submitted;
+  other warnings let the person re-record or submit anyway.
+- Upload goes straight from the browser to the private `recordings` bucket with a signed upload URL; the
+  recordings row is created only once the file is there. Failed uploads stay in memory and retry with backoff.
+- Limits in `app_settings`: `recording_min_ms`, `recording_max_ms`, `recording_min_speech_ms`,
+  `recording_rate_limit`, `recording_rate_window`. The bucket accepts at most 1 MB of audio/webm, audio/ogg or
+  audio/mp4.
+- `/profile` lists "My recordings" with play (signed URL fetched on tap) and delete while pending.
+- `npm run cleanup-orphans -- --dry-run` lists audio files older than an hour that have no recordings row;
+  without `--dry-run` it deletes them. Run it occasionally (for example daily).
 
 ## Project layout
 
